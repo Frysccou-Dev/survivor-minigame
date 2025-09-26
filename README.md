@@ -1,6 +1,4 @@
-
-Backend · Express + TypeScript
-------------------------------
+## Backend · Express + TypeScript
 
 Mini demo: https://www.youtube.com/watch?v=id15X8Q7Fpc
 
@@ -9,10 +7,10 @@ Mini demo: https://www.youtube.com/watch?v=id15X8Q7Fpc
 - `routes/` recibe las peticiones, valida `ObjectId`, parámetros obligatorios y enruta a los servicios.
 - `controllers/` conserva métodos útiles para escenarios donde se desee montar Express con controllers explícitos. En el run actual consumimos directamente los servicios desde las rutas para reducir capas en runtime.
 - `services/` encapsula reglas:
-	- `getSurvivorDetail` combina la definición del survivor, el estado del usuario simulado y sus picks.
-	- `joinSurvivor` crea la relación usuario–survivor con 3 vidas iniciales y asegura idempotencia.
-	- `makePick` evita duplicados y permite actualizar el pick solo si cambia el equipo.
-	- `calculateWinners` retorna los jugadores con más vidas, desempata por `joinedAt`.
+  - `getSurvivorDetail` combina la definición del survivor, el estado del usuario simulado y sus picks.
+  - `joinSurvivor` crea la relación usuario–survivor con 3 vidas iniciales y asegura idempotencia.
+  - `makePick` evita duplicados y permite actualizar el pick solo si cambia el equipo.
+  - `calculateWinners` retorna los jugadores con más vidas, desempata por `joinedAt`.
 - `repositories/` aísla Mongoose, permitiendo cambiar ODM o agregar caching sin tocar servicios.
 
 ### Modelado del dominio
@@ -35,8 +33,7 @@ Se eligió separar apuestas (`Gamble`) y picks (`Prediction`) porque habilita an
 - `dev:watch`: agrega `nodemon` para reinicios automáticos.
 - `build` + `start`: compilan TypeScript a `dist/` y levantan el servidor productivo.
 
-Frontend · Flutter
-------------------
+## Frontend · Flutter
 
 Este proyecto es el punto de partida para la aplicación Flutter.
 
@@ -44,16 +41,18 @@ Este proyecto es el punto de partida para la aplicación Flutter.
 
 Para mantener un código limpio y mantenible, el proyecto se ha modularizado de la siguiente manera:
 
--   **Models**: Las clases de datos se definen en `lib/models/`, como `tournament_models.dart` para las estructuras de datos relacionadas con torneos.
--   **Widgets**: Los componentes reutilizables de la UI se separan en `lib/widgets/tournament/`, incluyendo:
-    -   `header_section.dart`: Muestra la cabecera del torneo con estadísticas.
-    -   `secondary_nav.dart`: Pestañas de navegación para diferentes secciones.
-    -   `match_tile.dart`: Visualización individual de un partido con opciones de selección (pick).
-    -   `stats_bar.dart` y `stat_tile.dart`: Componentes para la visualización de estadísticas.
-    -   `debug_lives_controls.dart`: Controles de depuración para pruebas.
-    -   `lives_depleted_banner.dart`: Banner que se muestra cuando se agotan las vidas.
--   **Screens**: Las pantallas principales están en `lib/screens/`, con `tournament_screens.dart` ahora enfocado en la lógica principal, delegando la UI a widgets modulares.
--   **Services**: Las interacciones con la API se gestionan en `lib/services/`.
+- **Models**: Las clases de datos se definen en `lib/models/`, como `tournament_models.dart` para las estructuras de datos relacionadas con torneos.
+- **Widgets**: Los componentes reutilizables de la UI se separan en `lib/widgets/tournament/`, incluyendo:
+  - `header_section.dart`: Muestra la cabecera del torneo con estadísticas.
+  - `secondary_nav.dart`: Pestañas de navegación para diferentes secciones.
+  - `match_tile.dart`: Visualización individual de un partido con opciones de selección (pick).
+  - `stats_bar.dart` y `stat_tile.dart`: Componentes para la visualización de estadísticas.
+  - `debug_lives_controls.dart`: Controles de depuración para pruebas.
+  - `lives_depleted_banner.dart`: Banner que se muestra cuando se agotan las vidas.
+  - `feedback/inline_message.dart`: Mensajes inline reutilizables para estados de error, éxito e información.
+  - `dialogs/confirmation_dialog.dart`: Diálogo genérico para confirmar acciones sensibles como unirse al torneo.
+- **Screens**: Las pantallas principales están en `lib/screens/`, con `tournament_screens.dart` ahora enfocado en la lógica principal, delegando la UI a widgets modulares.
+- **Services**: Las interacciones con la API se gestionan en `lib/services/`.
 
 Este enfoque modular reduce el tamaño de los archivos individuales (anteriormente más de 1300 líneas en una sola pantalla), mejora la reutilización y facilita el mantenimiento y las pruebas del codebase.
 
@@ -68,10 +67,10 @@ Este enfoque modular reduce el tamaño de los archivos individuales (anteriormen
 
 - `lib/services/survivor_service.dart` usa `package:http` para consumir la API en `http://localhost:4300` durante desarrollo.
 - Estado local dentro de `_SurvivorDetailScreenState` resuelve:
-	- Una única confirmación de pick por partido (`_picks` + `_pickingMatches`).
-	- Cálculo de vidas máximas vs. vidas actuales para mostrar `X/Y vidas`.
-	- Banner cuando el jugador agota vidas.
-	- Botones de debugging (`Simular perder 1 vida`, `Resetear vidas a 3`) para validar feedback visual sin depender del backend.
+  - Una única confirmación de pick por partido (`_picks` + `_pickingMatches`).
+  - Cálculo de vidas máximas vs. vidas actuales para mostrar `X/Y vidas`.
+  - Banner cuando el jugador agota vidas.
+  - Botones de debugging (`Simular perder 1 vida`, `Resetear vidas a 3`) para validar feedback visual sin depender del backend.
 - Las jornadas se agrupan en `_TournamentStage`: la jornada 1 carga partidos reales, mientras que las jornadas 2-5 se generan con fechas semanales mock y quedan bloqueadas hasta contar con datos oficiales.
 - Animaciones breves (`AnimatedSwitcher`, `AnimatedOpacity`) suavizan cambios, manteniendo la UI reactiva sin introducir gestores de estado externos (simplicidad primero).
 
@@ -82,8 +81,20 @@ Este enfoque modular reduce el tamaño de los archivos individuales (anteriormen
 - Tabs compactas con relleno y estados activos bien contrastados.
 - Se priorizó de momento `Material 3` para aprovechar componentes modernos sin sobrecargar con librerías adicionales.
 
-Ciclo end-to-end
-----------------
+## Parte 3 – UX & Documentación
+
+### Experiencia de usuario
+
+- Se añadieron indicadores de carga visibles en la lista principal (skeletons y barra superior) y en el detalle (barra superior y estado en el tab de partidos).
+- Los errores ahora se muestran con mensajes inline consistentes y botones de reintento cuando corresponde, manteniendo la retroalimentación en contexto.
+- El flujo para unirse al Survivor solicita confirmación explícita antes de enviar la petición y comunica el resultado con mensajes persistentes y snackbars.
+
+### Documentación
+
+- El README explica los requisitos previos y los scripts disponibles para backend y frontend, indicando cómo aprovecharlos sin listar comandos directos.
+- Se documentaron las decisiones de UX recientes (loaders, mensajes y confirmaciones) para facilitar el traspaso a otros desarrolladores.
+
+## Ciclo end-to-end
 
 1. Al iniciar la API, `seedSurvivors()` inserta o actualiza los torneos mock.
 2. La app Flutter consulta la lista y navega al survivor seleccionado.
@@ -91,8 +102,7 @@ Ciclo end-to-end
 4. Cada pick (`/pick`) persiste un `Prediction`. El cliente bloquea selecciones repetidas vía confirmación modal.
 5. Los controles de pérdida/reset de vidas actúan localmente para pruebas de interfaz; el backend permanecerá como fuente de verdad cuando se integre la lógica definitiva.
 
-Decisiones de diseño y por qué
--------------------------------
+## Decisiones de diseño y por qué
 
 ### Backend
 
@@ -109,9 +119,10 @@ Decisiones de diseño y por qué
 - **Controles de vidas in-app**: agilizan QA de banners y estilos sin tener que alterar la base de datos.
 - **Diseño oscuro consistente**: amplifica la identidad del producto y contrasta con el naranja oficial (#ED9320).
 - **Cliente HTTP manual**: con `package:http` alcanzó; aún no necesitamos dio ni interceptores porque los endpoints son pocos y simples.
+- **Feedback unificado**: `InlineMessage` centraliza errores, avisos y confirmaciones en pantalla, complementado con snackbars para mantener al usuario informado.
+- **Confirmaciones críticas obligatorias**: el diálogo reutilizable asegura que unirse al torneo sea una acción consciente antes de golpear la API.
 
-Instalación y ejecución
------------------------
+## Instalación y ejecución
 
 > Nota: siguiendo los lineamientos internos, no se listan comandos exactos; usá tu herramienta preferida (terminal, scripts del IDE, tareas de CI) para ejecutar los scripts mencionados.
 
@@ -135,15 +146,13 @@ Instalación y ejecución
 3. Lanzá la aplicación desde tu IDE o mediante la tarea estándar de ejecución (`run`) del SDK de Flutter.
 4. Asegurate de que la API esté accesible en `http://localhost:4300`; si usás otra URL, actualizá `baseUrl` en `lib/services/survivor_service.dart`.
 
-Pruebas y validación
---------------------
+## Pruebas y validación
 
 - **Backend**: la estructura en capas deja lista la base para tests unitarios (por ejemplo sobre `SurvivorService`). Aún no se incluyeron suites de Jest o similares.
 - **Frontend**: el scaffold de Flutter trae un test de contador en `test/widget_test.dart`. Reemplazalo por escenarios reales (p. ej. render del listado, confirmación de picks). Recomendación: ejecutá el runner de pruebas de Flutter desde tu herramienta preferida una vez que el archivo apunte a `SurvivorApp`.
 - **Linting**: TypeScript usa `strict` en `tsconfig.json`. Flutter adopta las reglas de `flutter_lints` vía `analysis_options.yaml`.
 
-Siguientes pasos sugeridos
---------------------------
+## Siguientes pasos sugeridos
 
 - Integrar autenticación real y reemplazar `SIMULATED_USER_ID` por el usuario autenticado.
 - Persistir la lógica de vidas en el backend (actualmente los botones de depuración solo actualizan estado local).

@@ -1,45 +1,63 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+class ApiException implements Exception {
+  ApiException(this.message, {this.code});
+
+  final String message;
+  final int? code;
+
+  @override
+  String toString() => message;
+}
+
 class SurvivorService {
   static const String baseUrl = 'http://localhost:4300/api/survivor';
 
-  // Obtener lista de survivors
   static Future<List<dynamic>> fetchSurvivors() async {
-    final response = await http.get(Uri.parse(baseUrl));
+    final http.Response response = await http.get(Uri.parse(baseUrl));
     if (response.statusCode == 200) {
-      return json.decode(response.body);
-    } else {
-      throw Exception('Error al obtener survivors: ${response.statusCode}');
+      final dynamic body = _decodeBody(response.body);
+      if (body is List) {
+        return body;
+      }
+      throw ApiException('Formato de respuesta inválido');
     }
+    throw _buildError(response, 'No pudimos obtener los survivors.');
   }
 
   static Future<Map<String, dynamic>> fetchSurvivorDetail(String id) async {
-    final response = await http.get(Uri.parse('$baseUrl/$id'));
+    final http.Response response = await http.get(Uri.parse('$baseUrl/$id'));
     if (response.statusCode == 200) {
-      return json.decode(response.body) as Map<String, dynamic>;
-    } else {
-      throw Exception('Error al obtener detalle: ${response.statusCode}');
+      final dynamic body = _decodeBody(response.body);
+      if (body is Map<String, dynamic>) {
+        return body;
+      }
+      throw ApiException('Formato de respuesta inválido');
     }
+    throw _buildError(response, 'No pudimos cargar el detalle.');
   }
 
-  // Unirse a un survivor
   static Future<Map<String, dynamic>> joinSurvivor(String id) async {
-    final response = await http.post(Uri.parse('$baseUrl/join/$id'));
+    final http.Response response = await http.post(
+      Uri.parse('$baseUrl/join/$id'),
+    );
     if (response.statusCode == 200) {
-      return json.decode(response.body);
-    } else {
-      throw Exception('Error al unirse: ${response.statusCode}');
+      final dynamic body = _decodeBody(response.body);
+      if (body is Map<String, dynamic>) {
+        return body;
+      }
+      throw ApiException('Formato de respuesta inválido');
     }
+    throw _buildError(response, 'No pudimos completar el ingreso.');
   }
 
-  // Hacer un pick
   static Future<Map<String, dynamic>> makePick(
     String survivorId,
     String matchId,
     String selectedTeam,
   ) async {
-    final response = await http.post(
+    final http.Response response = await http.post(
       Uri.parse('$baseUrl/pick'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode({
@@ -49,9 +67,35 @@ class SurvivorService {
       }),
     );
     if (response.statusCode == 200) {
-      return json.decode(response.body);
-    } else {
-      throw Exception('Error al hacer pick: ${response.statusCode}');
+      final dynamic body = _decodeBody(response.body);
+      if (body is Map<String, dynamic>) {
+        return body;
+      }
+      throw ApiException('Formato de respuesta inválido');
     }
+    throw _buildError(response, 'No pudimos registrar el pick.');
+  }
+
+  static dynamic _decodeBody(String body) {
+    if (body.isEmpty) {
+      return null;
+    }
+    try {
+      return json.decode(body);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static ApiException _buildError(http.Response response, String fallback) {
+    final dynamic body = _decodeBody(response.body);
+    String message = fallback;
+    if (body is Map<String, dynamic>) {
+      final dynamic detail = body['message'] ?? body['error'];
+      if (detail is String && detail.trim().isNotEmpty) {
+        message = detail.trim();
+      }
+    }
+    return ApiException(message, code: response.statusCode);
   }
 }

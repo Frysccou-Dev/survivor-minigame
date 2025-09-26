@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/survivor_service.dart';
 import '../models/tournament_models.dart';
+import '../widgets/dialogs/confirmation_dialog.dart';
+import '../widgets/feedback/inline_message.dart';
 import '../widgets/tournament/header_section.dart';
 import '../widgets/tournament/secondary_nav.dart';
 import '../widgets/tournament/match_tile.dart';
@@ -29,6 +31,8 @@ class _SurvivorDetailScreenState extends State<SurvivorDetailScreen> {
   int _activeTab = 0;
   String? _error;
   int _maxLives = 0;
+  String? _joinMessage;
+  InlineMessageVariant? _joinMessageVariant;
 
   @override
   void initState() {
@@ -59,10 +63,11 @@ class _SurvivorDetailScreenState extends State<SurvivorDetailScreen> {
           (detail['survivor'] as Map<String, dynamic>?) ?? widget.survivor;
       final List<dynamic> predictions =
           detail['predictions'] as List<dynamic>? ?? const [];
+      final bool joined = detail['joined'] == true;
 
       setState(() {
         _survivor = survivorData;
-        _joined = detail['joined'] == true;
+        _joined = joined;
         _picks = {
           for (final dynamic item in predictions)
             if (item is Map<String, dynamic> &&
@@ -78,10 +83,21 @@ class _SurvivorDetailScreenState extends State<SurvivorDetailScreen> {
             _maxLives = detailLives;
           }
         }
+        if (joined && _joinMessage == null) {
+          _joinMessage = 'Ya estás jugando este Survivor.';
+          _joinMessageVariant = InlineMessageVariant.info;
+        }
+        if (!joined && _joinMessageVariant == InlineMessageVariant.info) {
+          _joinMessage = null;
+          _joinMessageVariant = null;
+        }
       });
     } catch (error) {
+      final String message = error is ApiException
+          ? error.message
+          : 'No pudimos cargar el detalle. Intentá nuevamente.';
       setState(() {
-        _error = 'No pudimos cargar el detalle. Intenta nuevamente.';
+        _error = message;
       });
     } finally {
       if (mounted) {
@@ -114,66 +130,79 @@ class _SurvivorDetailScreenState extends State<SurvivorDetailScreen> {
           const SizedBox(width: 4),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadDetail,
-        backgroundColor: const Color(0xFF121212),
-        color: const Color(0xFFED9320),
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              HeaderSection(
-                title: _survivor['name']?.toString() ?? 'Survivor',
-                stats: stats,
-                topPadding: topInset + kToolbarHeight,
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 32, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (_error != null)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1C1C1C),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFF272727)),
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: _loadDetail,
+            backgroundColor: const Color(0xFF121212),
+            color: const Color(0xFFED9320),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  HeaderSection(
+                    title: _survivor['name']?.toString() ?? 'Survivor',
+                    stats: stats,
+                    topPadding: topInset + kToolbarHeight,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 32, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_error != null) ...[
+                          InlineMessage(
+                            message: _error!,
+                            variant: InlineMessageVariant.error,
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
+                            onPressed: _loadingDetail ? null : _loadDetail,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Reintentar carga'),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+                        SecondaryNav(
+                          activeIndex: _activeTab,
+                          onChanged: (int value) {
+                            setState(() {
+                              _activeTab = value;
+                            });
+                          },
                         ),
-                        child: Text(
-                          _error!,
-                          style: const TextStyle(color: Colors.white70),
+                        const SizedBox(height: 28),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          child: _buildTabContent(stages),
                         ),
-                      ),
-                    if (_error != null) const SizedBox(height: 24),
-                    SecondaryNav(
-                      activeIndex: _activeTab,
-                      onChanged: (int value) {
-                        setState(() {
-                          _activeTab = value;
-                        });
-                      },
+                        const SizedBox(height: 32),
+                        _buildJoinSection(),
+                        const SizedBox(height: 14),
+                        DebugLivesControls(
+                          onLoseLife: _simulateLoseLife,
+                          onResetLives: _resetLives,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 28),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      child: _buildTabContent(stages),
-                    ),
-                    const SizedBox(height: 32),
-                    _buildJoinButton(),
-                    const SizedBox(height: 14),
-                    DebugLivesControls(
-                      onLoseLife: _simulateLoseLife,
-                      onResetLives: _resetLives,
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+          if (_loadingDetail)
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: LinearProgressIndicator(
+                minHeight: 2,
+                color: Color(0xFFED9320),
+                backgroundColor: Color(0xFF1C1C1C),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -572,61 +601,106 @@ class _SurvivorDetailScreenState extends State<SurvivorDetailScreen> {
     );
   }
 
-  Widget _buildJoinButton() {
+  Widget _buildJoinSection() {
     final String? survivorId = _survivor['_id'] as String?;
     if (survivorId == null) {
       return const SizedBox.shrink();
     }
 
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: _joined
-              ? const Color(0xFF1C1C1C)
-              : const Color(0xFFED9320),
-          foregroundColor: _joined ? Colors.white70 : Colors.black,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+    final List<Widget> columnChildren = [];
+    if (_joinMessage != null && _joinMessageVariant != null) {
+      columnChildren.add(
+        InlineMessage(message: _joinMessage!, variant: _joinMessageVariant!),
+      );
+      columnChildren.add(const SizedBox(height: 12));
+    }
+
+    columnChildren.add(
+      SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _joined
+                ? const Color(0xFF1C1C1C)
+                : const Color(0xFFED9320),
+            foregroundColor: _joined ? Colors.white70 : Colors.black,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          onPressed: _joined || _joining
+              ? null
+              : () => _joinSurvivor(survivorId),
+          icon: _joining
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.black,
+                  ),
+                )
+              : Icon(
+                  _joined ? Icons.verified_user_outlined : Icons.sports_soccer,
+                ),
+          label: Text(
+            _joined ? 'Ya estás jugando este Survivor' : 'Unirme al torneo',
           ),
         ),
-        onPressed: _joined || _joining ? null : () => _joinSurvivor(survivorId),
-        icon: _joining
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.black,
-                ),
-              )
-            : Icon(
-                _joined ? Icons.verified_user_outlined : Icons.sports_soccer,
-              ),
-        label: Text(
-          _joined ? 'Ya estás jugando este Survivor' : 'Unirme al torneo',
-        ),
       ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: columnChildren,
     );
   }
 
   Future<void> _joinSurvivor(String survivorId) async {
+    final bool confirmed = await showConfirmationDialog(
+      context: context,
+      title: '¿Unirte al Survivor?',
+      message:
+          'Vas a quedar registrado con 3 vidas iniciales y se habilitan tus picks. ¿Querés continuar?',
+      confirmLabel: 'Sí, unirme',
+      cancelLabel: 'No todavía',
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
     setState(() {
       _joining = true;
+      _joinMessage = null;
+      _joinMessageVariant = null;
     });
 
     try {
       await SurvivorService.joinSurvivor(survivorId);
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _joined = true;
+        _joinMessage = 'Te uniste al Survivor. ¡Éxitos en tus picks!';
+        _joinMessageVariant = InlineMessageVariant.success;
       });
-      _showSnack('Te uniste al Survivor. ¡Suerte!');
+      _showSnack('Te uniste al Survivor. ¡Éxitos en tus picks!');
       await _loadDetail();
     } catch (error) {
-      if (!mounted) return;
-      _showSnack('No pudimos unirte. Probá de nuevo en un rato.');
+      if (!mounted) {
+        return;
+      }
+      final String message = error is ApiException
+          ? error.message
+          : 'No pudimos unirte. Probá de nuevo en un rato.';
+      setState(() {
+        _joinMessage = message;
+        _joinMessageVariant = InlineMessageVariant.error;
+      });
+      _showSnack(message);
     } finally {
       if (mounted) {
         setState(() {
@@ -670,7 +744,10 @@ class _SurvivorDetailScreenState extends State<SurvivorDetailScreen> {
       _showSnack('Pick guardado: $teamName');
     } catch (error) {
       if (!mounted) return;
-      _showSnack('No pudimos guardar el pick. Intentalo de nuevo.');
+      final String message = error is ApiException
+          ? error.message
+          : 'No pudimos guardar el pick. Intentá de nuevo.';
+      _showSnack(message);
     } finally {
       if (mounted) {
         setState(() {

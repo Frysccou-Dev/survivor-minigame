@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/survivor_service.dart';
+import '../widgets/feedback/inline_message.dart';
 import 'tournament_screens.dart';
 
 class SurvivorListScreen extends StatefulWidget {
@@ -34,8 +35,11 @@ class _SurvivorListScreenState extends State<SurvivorListScreen> {
         _survivors = data;
       });
     } catch (error) {
+      final String message = error is ApiException
+          ? error.message
+          : 'No pudimos cargar los torneos. Intentá de nuevo.';
       setState(() {
-        _error = 'No pudimos cargar los torneos. Intenta de nuevo.';
+        _error = message;
       });
     } finally {
       if (mounted) {
@@ -59,34 +63,52 @@ class _SurvivorListScreenState extends State<SurvivorListScreen> {
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _fetchSurvivors,
-        backgroundColor: const Color(0xFF121212),
-        color: const Color(0xFFED9320),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: _buildContent(),
-        ),
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: _fetchSurvivors,
+            backgroundColor: const Color(0xFF121212),
+            color: const Color(0xFFED9320),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: _buildContent(),
+            ),
+          ),
+          if (_isLoading && _survivors.isNotEmpty)
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: LinearProgressIndicator(
+                minHeight: 2,
+                color: Color(0xFFED9320),
+                backgroundColor: Color(0xFF1C1C1C),
+              ),
+            ),
+        ],
       ),
     );
   }
 
   Widget _buildContent() {
     if (_isLoading && _survivors.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: 3,
+        separatorBuilder: (_, __) => const SizedBox(height: 16),
+        itemBuilder: (_, __) => const _SurvivorSkeletonCard(),
+      );
     }
 
     if (_error != null) {
       return ListView(
         children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1C1C1C),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF272727)),
-            ),
-            child: Text(_error!, style: const TextStyle(color: Colors.white70)),
+          InlineMessage(message: _error!, variant: InlineMessageVariant.error),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _isLoading ? null : _fetchSurvivors,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Intentar nuevamente'),
           ),
         ],
       );
@@ -96,12 +118,7 @@ class _SurvivorListScreenState extends State<SurvivorListScreen> {
       return ListView(
         children: const [
           SizedBox(height: 120),
-          Center(
-            child: Text(
-              'No encontramos torneos disponibles.',
-              style: TextStyle(color: Colors.white70),
-            ),
-          ),
+          InlineMessage(message: 'No encontramos torneos disponibles.'),
         ],
       );
     }
@@ -123,6 +140,53 @@ class _SurvivorListScreenState extends State<SurvivorListScreen> {
           },
         );
       },
+    );
+  }
+}
+
+class _SurvivorSkeletonCard extends StatelessWidget {
+  const _SurvivorSkeletonCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF161616),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF1F1F1F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          _SkeletonLine(widthFactor: 0.3),
+          SizedBox(height: 16),
+          _SkeletonLine(widthFactor: 0.6, height: 18),
+          SizedBox(height: 10),
+          _SkeletonLine(widthFactor: 0.4),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonLine extends StatelessWidget {
+  const _SkeletonLine({this.widthFactor = 1, this.height = 12});
+
+  final double widthFactor;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return FractionallySizedBox(
+      widthFactor: widthFactor,
+      child: Container(
+        height: height,
+        decoration: BoxDecoration(
+          color: const Color(0xFF1F1F1F),
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
     );
   }
 }
