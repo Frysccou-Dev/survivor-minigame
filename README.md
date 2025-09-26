@@ -2,6 +2,8 @@
 Backend · Express + TypeScript
 ------------------------------
 
+Mini demo: https://www.youtube.com/watch?v=id15X8Q7Fpc
+
 ### Arquitectura en capas
 
 - `routes/` recibe las peticiones, valida `ObjectId`, parámetros obligatorios y enruta a los servicios.
